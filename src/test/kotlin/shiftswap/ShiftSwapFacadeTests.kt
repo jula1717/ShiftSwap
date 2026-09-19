@@ -30,14 +30,57 @@ class ShiftSwapFacadeTests {
     }
 
     @Test
-    fun approvingMissingRequest_currentlyReturnsGenericFailure() = runTest {
+    fun approvingMissingRequest_returnsNotFoundFailure() = runTest {
         val facade = makeFacade(InMemoryShiftSwapRepository())
 
         val result = facade.approve(999, approverId = 1)
 
         val error = result.exceptionOrNull()
-        if (error !is ShiftSwapFacadeError.Failed) {
-            fail<Unit>("expected today's generic Failed(...) for a missing request")
+        if (error !is ShiftSwapFacadeError.NotFound || error.id != 999) {
+            fail("expected NotFound(999) failure for a missing request, got $error")
+        }
+    }
+
+    @Test
+    fun approvingAnAlreadyApprovedRequest_returnsInvalidStateFailure() = runTest {
+        val repository = InMemoryShiftSwapRepository()
+        val facade = makeFacade(repository)
+
+        val requested = facade.request(
+            RequestShiftSwapPayload(
+                requesterId = 1,
+                filedBy = 1,
+                segments = emptyList()
+            )
+        )
+        facade.approve(requestId = requested.id, approverId = 1)
+
+        val result = facade.approve(requestId = requested.id, approverId = 1)
+
+        val error = result.exceptionOrNull()
+        if (error !is ShiftSwapFacadeError.InvalidState) {
+            fail("expected InvalidState failure for a re-approval attempt, got $error")
+        }
+    }
+
+    @Test
+    fun approvingWhenRepositoryFails_returnsUnderlyingFailure() = runTest {
+        val repository = FailingShiftSwapRepository(InMemoryShiftSwapRepository())
+        val facade = makeFacade(repository)
+
+        val requested = facade.request(
+            RequestShiftSwapPayload(
+                requesterId = 1,
+                filedBy = 1,
+                segments = emptyList()
+            )
+        )
+
+        val result = facade.approve(requestId = requested.id, approverId = 1)
+
+        val error = result.exceptionOrNull()
+        if (error !is ShiftSwapFacadeError.Underlying) {
+            fail("expected Underlying failure for a repository error, got $error")
         }
     }
 }

@@ -8,6 +8,16 @@ class ThrowingShiftSwapNotifier : ShiftSwapNotifier {
     }
 }
 
+class FailingShiftSwapRepository(
+    private val repo: ShiftSwapRepository
+) : ShiftSwapRepository{
+    override suspend fun insert(request: ShiftSwapRequest): ShiftSwapRequest = repo.insert(request)
+
+    override suspend fun find(id: Int): ShiftSwapRequest? = repo.find(id)
+
+    override suspend fun update(request: ShiftSwapRequest): ShiftSwapRequest = throw Exception("simulated technical failure on update")
+}
+
 class RecordingShiftSwapNotifier : ShiftSwapNotifier {
     private val _events = mutableListOf<ShiftSwapEvent>()
     val events: List<ShiftSwapEvent> get() = _events

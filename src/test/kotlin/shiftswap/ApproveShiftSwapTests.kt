@@ -3,7 +3,9 @@ package shiftswap
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 
 class ApproveShiftSwapTests {
 
@@ -71,5 +73,25 @@ class ApproveShiftSwapTests {
             approved.payAdjustmentCents,
             "ten 0.1h segments at \$1/h must adjust pay by exactly \$1.00, not \$0.99"
         )
+    }
+
+    @Test
+    fun approveWrapsARepositoryFailureAsAnUnderlyingError() = runTest {
+        val repository = FailingShiftSwapRepository(InMemoryShiftSwapRepository())
+        val notifier = RecordingShiftSwapNotifier()
+        val logger = RecordingShiftSwapEventLogger()
+        val service = ShiftSwapService(repository, notifier, logger)
+
+        val requested = service.request(requesterId = 1, filedBy = 1, segments = emptyList())
+
+        try {
+            service.approve(requested.id, approverId = 1)
+            fail("expected an Underlying error to be thrown")
+        } catch (error: ShiftSwapError.Underlying) {
+            assertTrue(
+                error.detail.contains("simulated technical failure on update"),
+                "the underlying repository exception's detail should be preserved, got: ${error.detail}"
+            )
+        }
     }
 }

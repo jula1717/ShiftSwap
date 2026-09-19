@@ -6,6 +6,11 @@ enum class ShiftSwapStatus {
     DENIED
 }
 
+enum class ShiftSwapDecision {
+    APPROVE,
+    DENY
+}
+
 data class ShiftSegment(
     val label: String,
     val hours: Double,

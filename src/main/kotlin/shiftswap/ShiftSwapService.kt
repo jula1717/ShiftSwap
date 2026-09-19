@@ -16,21 +16,19 @@ class ShiftSwapService(
             filedBy = filedBy,
             segments = segments
         )
-        return repository.insert(draft)
+        return repositoryCall { repository.insert(draft) }
     }
 
     suspend fun approve(requestId: Int, approverId: Int): ShiftSwapRequest {
-        val existing = repository.find(requestId) ?: throw ShiftSwapError.NotFound(requestId)
-        if (existing.status != ShiftSwapStatus.REQUESTED) {
-            throw ShiftSwapError.InvalidState(existing.status, "approve")
-        }
+        val existing =
+            requirePendingRequest(requestId = requestId, decision = ShiftSwapDecision.APPROVE)
 
         val updated = existing.copy(
             status = ShiftSwapStatus.APPROVED,
             approverId = approverId,
             payAdjustmentCents = computePayAdjustmentCents(existing.segments)
         )
-        val saved = repository.update(updated)
+        val saved = repositoryCall { repository.update(updated) }
 
         notifySafely(ShiftSwapEvent.SwapApproved(saved.id, saved.requesterId))
         notifySafely(ShiftSwapEvent.SwapApprovedForPayroll(saved.id, approverId))
@@ -38,8 +36,31 @@ class ShiftSwapService(
         return saved
     }
 
+    private suspend fun requirePendingRequest(
+        requestId: Int,
+        decision: ShiftSwapDecision
+    ): ShiftSwapRequest {
+        val existing = repositoryCall {
+            repository.find(requestId)
+        } ?: throw ShiftSwapError.NotFound(requestId)
+        if (existing.status != ShiftSwapStatus.REQUESTED) {
+            throw ShiftSwapError.InvalidState(existing.status, decision)
+        }
+        return existing
+    }
+
     suspend fun deny(requestId: Int, deniedBy: Int): ShiftSwapRequest {
         TODO("DenyShiftSwap is not implemented yet - this is your task")
+    }
+
+    private suspend fun <T> repositoryCall(block: suspend () -> T): T {
+        try {
+            return block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw ShiftSwapError.Underlying(e.toString())
+        }
     }
 
     private suspend fun notifySafely(event: ShiftSwapEvent) {
