@@ -18,8 +18,7 @@ powiadomień. W ten sposób test `approvalSucceeds_evenWhenNotificationChannelFa
 przechodzi i nie wymagało to zmiany jego asercji. Jednocześnie CancellationException jest
 rethrowowany, aby nie blokować anulowania korutyny (structure concurrency).
 
-## Problem 2 - `ShiftSwapFacade.approve()` zwraca ten sam ogólny przypadek błędu dla każdej możliwej przyczyny
-niepowodzenia
+## Problem 2 - `ShiftSwapFacade.approve()` zwraca ten sam ogólny przypadek błędu dla każdej możliwej przyczyny niepowodzenia
 
 ### Natura problemu
 
@@ -53,3 +52,36 @@ Wszystkie 4 klasy wyjątków mają swoje pokrycie w dodanych testach, a także w
 Dodatkowo dzięki dodaniu dla pola `attempted` enum class `ShiftSwapDecision`, zapewnione jest
 bezpieczeństwo typów. Dodałam także obsługę CancellationException (jak dla problemu 1).
 
+## Problem 3 - Naprawienie problemu zgłoszonego przez support
+
+### Natura problemu i jego zdiagnozowanie
+
+Skoro problem dotyczył pomieszania danych właściciela requestu (pracownika,
+którego dotyczy zmiana) i osoby, która złożyła wniosek, w pierwszej
+kolejności sprawdziłam, gdzie te dwie wartości są w ogóle ustawiane - i w
+`ShiftSwapFacade.request()` zauważyłam zamienioną kolejność:
+
+```kotlin
+private fun resolveSwapOwnership(payload: RequestShiftSwapPayload): Ownership =
+   Ownership(requesterId = payload.filedBy, filedBy = payload.requesterId)
+```
+
+Zauważenie tego ułatwiły dodatkowo rzucające się w oczy named parameters -
+`requesterId = payload.filedBy` z przypisanymi odwrotnymi wartościami.
+
+Żeby zrozumieć, czemu problem występował tylko "czasem", zwróciłam uwagę, że we wcześmniejszych
+testach `requesterId` i `filedBy` to ta sama wartość, więc błąd nie zostanie w takim przypadku
+zauważony.
+
+### Rozwiązanie
+
+Usunęłam metodę `resolveSwapOwnership()` wraz z klasą `Ownership` w całości,
+zamiast tylko poprawić kolejność argumentów w środku - po takiej korekcie
+`Ownership` stałoby się zwykłym przepisaniem tych samych dwóch pól bez żadnej
+dodatkowej logiki, więc sama jej obecność byłaby zbędna. `ShiftSwapFacade.request()`
+przekazuje teraz `payload.requesterId` i `payload.filedBy` bezpośrednio do
+`ShiftSwapService.request()`.
+
+Dzięki dodaniu testu `requestingOnBehalfOfSomeoneElse_keepsRequesterAndFilerDistinct`,
+który celowo ustawia `requesterId != filedBy` kod jest zabezpieczony przed ponownym pomieszaniem
+tych dwóch wartości w przyszłości.

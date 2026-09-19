@@ -83,4 +83,29 @@ class ShiftSwapFacadeTests {
             fail("expected Underlying failure for a repository error, got $error")
         }
     }
+
+    @Test
+    fun requestingOnBehalfOfSomeoneElse_keepsRequesterAndFilerDistinct() = runTest {
+        val repository = InMemoryShiftSwapRepository()
+        val facade = makeFacade(repository)
+
+        val requested = facade.request(
+            RequestShiftSwapPayload(
+                requesterId = 1,
+                filedBy = 2,
+                segments = emptyList()
+            )
+        )
+
+        assertEquals(
+            1,
+            requested.requesterId,
+            "the employee who owns the shift must stay the requester"
+        )
+        assertEquals(
+            2,
+            requested.filedBy,
+            "the person who filed the request in the app must stay filedBy"
+        )
+    }
 }

@@ -10,8 +10,7 @@ class ShiftSwapFacade(
     private val service = ShiftSwapService(repository, notifier, eventLogger)
 
     suspend fun request(payload: RequestShiftSwapPayload): ShiftSwapDto {
-        val ownership = resolveSwapOwnership(payload)
-        val request = service.request(ownership.requesterId, ownership.filedBy, payload.segments)
+        val request = service.request(payload.requesterId, payload.filedBy, payload.segments)
         return ShiftSwapDto(request)
     }
 
@@ -20,11 +19,6 @@ class ShiftSwapFacade(
     }
 
     suspend fun find(requestId: Int): ShiftSwapDto? = repository.find(requestId)?.let(::ShiftSwapDto)
-
-    private fun resolveSwapOwnership(payload: RequestShiftSwapPayload): Ownership =
-        Ownership(requesterId = payload.filedBy, filedBy = payload.requesterId)
-
-    private data class Ownership(val requesterId: Int, val filedBy: Int)
 
     private suspend fun toFacadeResult(
         block: suspend () -> ShiftSwapRequest
