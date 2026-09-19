@@ -1,5 +1,7 @@
 package shiftswap
 
+import kotlinx.coroutines.CancellationException
+
 class ShiftSwapService(
     private val repository: ShiftSwapRepository,
     private val notifier: ShiftSwapNotifier,
@@ -30,14 +32,24 @@ class ShiftSwapService(
         )
         val saved = repository.update(updated)
 
-        notifier.notify(ShiftSwapEvent.SwapApproved(saved.id, saved.requesterId))
-        notifier.notify(ShiftSwapEvent.SwapApprovedForPayroll(saved.id, approverId))
+        notifySafely(ShiftSwapEvent.SwapApproved(saved.id, saved.requesterId))
+        notifySafely(ShiftSwapEvent.SwapApprovedForPayroll(saved.id, approverId))
 
         return saved
     }
 
     suspend fun deny(requestId: Int, deniedBy: Int): ShiftSwapRequest {
         TODO("DenyShiftSwap is not implemented yet - this is your task")
+    }
+
+    private suspend fun notifySafely(event: ShiftSwapEvent) {
+        try {
+            notifier.notify(event)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            eventLogger.log("Failed to notify for event $event: ${e.message}")
+        }
     }
 
     private fun computePayAdjustmentCents(segments: List<ShiftSegment>): Int {
