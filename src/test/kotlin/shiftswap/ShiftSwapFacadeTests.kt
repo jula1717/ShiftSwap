@@ -99,6 +99,33 @@ class ShiftSwapFacadeTests {
     }
 
     @Test
+    fun approvingWithAnOverflowingPayAdjustment_returnsFailedFailure() = runTest {
+        val repository = InMemoryShiftSwapRepository()
+        val facade = makeFacade(repository)
+
+        val requested = facade.request(
+            RequestShiftSwapPayload(
+                requesterId = 1,
+                filedBy = 1,
+                segments = listOf(
+                    ShiftSegment(
+                        label = "Holiday cover",
+                        hours = 1_000_000.0,
+                        hourlyRateInDollars = 1_000_000.0
+                    )
+                )
+            )
+        )
+
+        val result = facade.approve(requested.id, approverId = 1)
+
+        val error = result.exceptionOrNull()
+        if (error !is ShiftSwapFacadeError.Failed) {
+            fail("expected Failed failure for a pay adjustment that overflows Int, got $error")
+        }
+    }
+
+    @Test
     fun requestingOnBehalfOfSomeoneElse_keepsRequesterAndFilerDistinct() = runTest {
         val repository = InMemoryShiftSwapRepository()
         val facade = makeFacade(repository)

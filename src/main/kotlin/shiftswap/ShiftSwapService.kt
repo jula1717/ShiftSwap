@@ -1,6 +1,7 @@
 package shiftswap
 
 import kotlinx.coroutines.CancellationException
+import kotlin.math.roundToLong
 
 class ShiftSwapService(
     private val repository: ShiftSwapRepository,
@@ -84,7 +85,7 @@ class ShiftSwapService(
     }
 
     private fun computePayAdjustmentCents(segments: List<ShiftSegment>): Int {
-        val totalDollars = segments.sumOf { it.hours * it.hourlyRateInDollars }
-        return (totalDollars * 100).toInt()
+        val totalCents = segments.sumOf { (it.hours * it.hourlyRateInDollars * 100.0).roundToLong() }
+        return Math.toIntExact(totalCents)
     }
 }

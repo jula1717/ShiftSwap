@@ -134,3 +134,19 @@ Poza tym rozwiązanie obejmuje:
    pole.
 2. Dodanie testu `requestingAndDenyingThroughTheFacade_returnsDeniedRequest`, aby `deny` miała
    pokrycie również na poziomie fasady, a nie tylko serwisu.
+
+## Problem 6* - naprawienie logiki odpowiedzialnej za fail testu `payAdjustment_accountsForManySmallSegmentsWithoutDrift`
+
+### Natura problemu
+
+Metoda sumowała `hours * hourlyRateInDollars` w `Double`, a na
+końcu obcinała (`.toInt()`) zamiast zaokrąglić. W związku z tym błąd przy sumowaniu wielu małych
+wartości (np. dziesięciu `0.1`), połączony z obcinaniem w dół, dawał `99` centów zamiast `100`.
+
+### Rozwiązanie
+
+Każdy segment jest zaokrąglany do pełnych centów osobno (`roundToLong()`), zanim błędy zdążą się
+skumulować w sumie, a wynik sumowany jako `Long` z `Math.toIntExact()` pilnuje przepełnienia `Int`.
+Test `approvingWithAnOverflowingPayAdjustment_returnsFailedFailure` sprawdza, że przepełnienie `Int`
+nadal kończy się wyjątkiem i że jest on mapowany na `ShiftSwapFacadeError.Failed` tym samym
+mechanizmem co w problemie 2 (`toFacadeResult()`).
