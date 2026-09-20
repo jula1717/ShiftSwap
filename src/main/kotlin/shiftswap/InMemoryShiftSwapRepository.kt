@@ -1,12 +1,14 @@
 package shiftswap
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+
 class InMemoryShiftSwapRepository : ShiftSwapRepository {
-    private val storage = HashMap<Int, ShiftSwapRequest>()
-    private var nextId = 1
+    private val storage = ConcurrentHashMap<Int, ShiftSwapRequest>()
+    private val nextId = AtomicInteger(1)
 
     override suspend fun insert(request: ShiftSwapRequest): ShiftSwapRequest {
-        val assigned = request.copy(id = nextId)
-        nextId += 1
+        val assigned = request.copy(id = nextId.getAndIncrement())
         storage[assigned.id] = assigned
         return assigned
     }

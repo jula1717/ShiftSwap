@@ -85,3 +85,21 @@ przekazuje teraz `payload.requesterId` i `payload.filedBy` bezpośrednio do
 Dzięki dodaniu testu `requestingOnBehalfOfSomeoneElse_keepsRequesterAndFilerDistinct`,
 który celowo ustawia `requesterId != filedBy` kod jest zabezpieczony przed ponownym pomieszaniem
 tych dwóch wartości w przyszłości.
+
+## Problem 4 - `InMemoryShiftSwapRepository` nie jest bezpieczne przy współbieżności
+
+### Natura problemu
+
+`nextId: Int` i `storage: HashMap` były modyfikowane bez synchronizacji z wielu korutyn równolegle (
+`Dispatchers.Default`, czyli z wielu wątków). `nextId += 1` to tak naprawdę 3 osobne operacje (
+odczyt, inkrementacja i zapis), przez co dwie korutyny mogły odczytac ten sam `id` zanim ktoras z
+nich zapisała wartość, a `HashMap` nie jest bezpieczny przy współbieżnych zapisach (np. utrata
+wpisu, nadpisanie czy problemy ze zmianą rozmiaru struktury). `ConcurrencyStressCheck` (2000
+równoległych wstawień) wykrywał to jako niezgodną liczbę unikalnych `id`.
+
+### Rozwiązanie
+
+`AtomicInteger.getAndIncrement()` łączy odczyt i inkrementację wartości w jedną atomową
+(niepodzielną) operację, więc dwie korutyny nigdy nie dostaną tego samego `id` i nie zapiszą wpisu
+pod tym samym indeksem, a `ConcurrentHashMap` gwarantuje bezpieczeństwo pojedynczych zapisów
+pod różnymi kluczami.
