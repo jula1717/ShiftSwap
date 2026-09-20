@@ -30,6 +30,20 @@ class ShiftSwapFacadeTests {
     }
 
     @Test
+    fun requestingAndDenyingThroughTheFacade_returnsDeniedRequest() = runTest {
+        val facade = makeFacade(InMemoryShiftSwapRepository())
+
+        val requested = facade.request(
+            RequestShiftSwapPayload(requesterId = 1, filedBy = 1, segments = emptyList())
+        )
+
+        val denied = facade.deny(requested.id, deniedBy = 2).getOrThrow()
+
+        assertEquals(ShiftSwapStatus.DENIED, denied.status)
+        assertEquals(2, denied.deniedBy)
+    }
+
+    @Test
     fun approvingMissingRequest_returnsNotFoundFailure() = runTest {
         val facade = makeFacade(InMemoryShiftSwapRepository())
 

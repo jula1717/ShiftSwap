@@ -50,7 +50,17 @@ class ShiftSwapService(
     }
 
     suspend fun deny(requestId: Int, deniedBy: Int): ShiftSwapRequest {
-        TODO("DenyShiftSwap is not implemented yet - this is your task")
+        val existing = requirePendingRequest(requestId = requestId, decision = ShiftSwapDecision.DENY)
+
+        val updated = existing.copy(
+            status = ShiftSwapStatus.DENIED,
+            deniedBy = deniedBy,
+        )
+        val saved = repositoryCall { repository.update(updated) }
+
+        notifySafely(ShiftSwapEvent.SwapDenied(saved.id, saved.requesterId))
+
+        return saved
     }
 
     private suspend fun <T> repositoryCall(block: suspend () -> T): T {

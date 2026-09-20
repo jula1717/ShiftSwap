@@ -103,3 +103,34 @@ równoległych wstawień) wykrywał to jako niezgodną liczbę unikalnych `id`.
 (niepodzielną) operację, więc dwie korutyny nigdy nie dostaną tego samego `id` i nie zapiszą wpisu
 pod tym samym indeksem, a `ConcurrentHashMap` gwarantuje bezpieczeństwo pojedynczych zapisów
 pod różnymi kluczami.
+
+## Problem 5 - Dodanie operacji `ShiftSwapService.deny(requestId, deniedBy)`
+
+### Natura problemu
+
+Metoda `deny` wymagała implementacji.
+
+### Rozwiązanie
+
+Przy implementacji można było skorzystać z metod zastosowanych przy rozwiązywaniu pozostałych
+problemów:
+
+1. Powiadamianie przez `notifySafely()` z istniejącym zdarzeniem `ShiftSwapEvent.SwapDenied`. Błąd w
+   notify nie powinien wpływać na wynik operacji.
+2. Skorzystanie z metody `requirePendingRequest()` - walidacja, czy request istnieje i jest w stanie
+   `REQUESTED`.
+3. Skorzystanie z metody `toFacadeResult()` - mapowanie błędów domenowych na błędy fasady.
+
+Poza tym rozwiązanie obejmuje:
+
+1. Dodanie pola `deniedBy: Int? = null` do `ShiftSwapRequest` i `ShiftSwapDto`. Dołączony do zadania
+   test sprawdza jedynie `status` po odrzuceniu, nie kto odrzucił, ale `approvedBy` to nazwa, która
+   twierdzi, że ktoś zatwierdził prośbę - zapisanie tam osoby odrzucającej sprawiłoby, że pole
+   kłamałoby wprost przy `status = DENIED` (podobny problem pomieszania znaczenia pól miał już
+   miejsce w problemie 3 i stąd głównie decyzja na takie rozwiązanie). Dzięki wartości domyślnej
+   `null` ta zmiana nie wymagała poprawek w istniejących użyciach. Można było również wprowadzić
+   jedno neutralne `decidedBy: Int?`, odczytywane zawsze razem ze `status`, ale wtedy sama nazwa
+   pola nie mówiła o rodzaju decyzji bez patrzenia na `status`, stąd wybrałam osobne, jednoznaczne
+   pole.
+2. Dodanie testu `requestingAndDenyingThroughTheFacade_returnsDeniedRequest`, aby `deny` miała
+   pokrycie również na poziomie fasady, a nie tylko serwisu.

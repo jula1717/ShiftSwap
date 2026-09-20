@@ -18,6 +18,10 @@ class ShiftSwapFacade(
         service.approve(requestId, approverId)
     }
 
+    suspend fun deny(requestId: Int, deniedBy: Int) = toFacadeResult {
+        service.deny(requestId, deniedBy)
+    }
+
     suspend fun find(requestId: Int): ShiftSwapDto? = repository.find(requestId)?.let(::ShiftSwapDto)
 
     private suspend fun toFacadeResult(
